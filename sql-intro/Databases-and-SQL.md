@@ -271,6 +271,135 @@ Using the `readings` table, write a query to display the `station_id`, `date` an
 2. Sorting results according to `ORDER BY`;
 3. Displaying requested columns or expressions.
 
+## Missing Data
+
+Real-world data are never complete--there are always holes.
+**Databases represent these holes using a special value called `NULL`.**
+`NULL` is not zero, `NULL` is not False, and `NULL` is not the emptry string; it is a one-of-a-king value that means "nothing here."
+Dealing with `NULL` requires a few special tricks and some careful thinking.
+
+To start, let's look at readings from the station with `station_id` 5.
+
+    SELECT * FROM readings
+     WHERE station_id = 5;
+
+**If we scroll to the bottom,** it appears that the last three records are missing values for the water content fields.
+More accurately, the values in the fields are `NULL`.
+`NULL` doesn't behave like other values.
+**How might we try to find other records like this where the `water_content_2inch` column is null?**
+
+    SELECT * FROM readings WHERE water_content_2inch = NULL;
+    SELECT * FROM readings WHERE water_content_2inch != NULL;
+    SELECT 2 = 2;
+    SELECT 2 = 3;
+    SELECT 2 = NULL;
+    SELECT NULL = NULL;
+
+It turns out, we need a special test for `NULL`.
+
+    SELECT *
+      FROM readings
+     WHERE water_content_2inch IS NULL;
+
+    SELECT *
+      FROM readings
+     WHERE water_content_2inch IS NOT NULL;
+
+`NULL` can make trouble for some of queries.
+Suppose we want to see all the records from `station_id` 5 but exclude those with a 2-inch water content at or above 0.05.
+
+    SELECT *
+      FROM readings
+     WHERE station_id = 5 AND water_content_2inch < 0.05
+
+**What we don't get in this query are all those records where `water_content_2inch` is `NULL`.**
+To get those records, we need to add another condition.
+
+    SELECT *
+      FROM readings
+     WHERE station_id = 5 AND
+        (water_content_2inch < 0.05 OR water_content_2inch IS NULL);
+
+Similarly, what is wrong with the following query?
+
+    SELECT * FROM readings WHERE water_content_2inch IN (0.049, NULL);
+
+## Aggregation
+
+**Aggregation allows us to combine results by grouping records based on value and calculating combined values in groups.**
+Let's go to the readings table and find out how many records there are.
+Using the wildcard simply counts the number of records (rows).
+
+    SELECT count(*) FROM readings;
+
+We can also calculate the rainfall across all those readings!
+
+    SELECT count(*), sum(rain_inches)
+      FROM readings;
+
+There are other aggregation functions that allow us to compute summary statistics.
+
+    SELECT min(rain_inches), max(rain_inches), avg(air_temp_f)
+      FROM readings;
+
+These numbers may be useful for validating or exploring our data; for instance, is the maximum rainfall in inches, 0.2, a reasonable value?
+It's also neat to think about the total amount of rainfall across all these stations.
+However, that quantity isn't very scientifically meaningful because it spans so many different hours, days, and stations.
+**If we want to aggregate within groups, such as within dates or within stations, we can add a `GROUP BY` clause to our query.**
+For instance, here's a count of the number of records for each station:
+
+    SELECT station_id, count(air_temp_f)
+      FROM readings
+     GROUP BY station_id;
+
+`GROUP BY` tells SQL what field or fields we want to use to aggregate the data.
+**If we want to group by multiple fields, we give `GROUP BY` a comma-separated list.**
+
+    SELECT station_id, date, count(air_temp_f)
+      FROM readings
+     GROUP BY station_id, date;
+
+### Challenge: Aggregation
+
+Write queries that return:
+
+- What is the average temperature at each station?
+- What is the maximum rainfall at each station?
+
+Can you modify the above queries combining them into one?
+
+### Care in Aggregation
+
+Let's say we want to find out the average temperature at station 5 on each date and we write a query like this.
+
+    SELECT station_id, date, time_utc, avg(air_temp_f)
+      FROM readings
+     WHERE station_id = 5
+     GROUP BY date;
+
+**We absent-mindedly included the `time_utc` column, maybe because we were typing quickly or because we wanted to group by values in this column across all stations.**
+At any rate, we have a column in our `SELECT` clause that is neither in the `GROUP BY` clause nor called with an aggregation function like `avg()`.
+
+- What does the `time_utc` column mean in the context of this query?
+- Why is it populated?
+
+When the `GROUP BY` clause is processed by the database manager, it groups the records that correspond to the groups we defined.
+Then, the database manager has to figure out what values should appear in each column for each group.
+In the `SELECT` clause we specified:
+
+- `station_id`: This is easy because of our `WHERE` clause: there is only one value to choose from.
+- `date`: This is also easy, because we grouped by this column; there should be one unique value in this column for each output row.
+- `avg(air_temp_f)`: Here, the database manager takes the mean of each group of air temperatures for each date.
+
+**The problem is that the database manager wasn't told how to aggregate the `time_utc` field.**
+When SQLite is asked to aggregate a field but isn't told how to do so, it chooses an actual value that appears in the input set of values *more or less at random.*
+For instance, if we see `23:40` in the `time_utc` field on `20160731`, this could be because this was the only time when a measurement was made on this day or because the first value in the set of `time_utc` values was `23:40`, or for an entirely different reason.
+
+**It's very important for you to know that this is non-standard behavior and will not work in all database management systems.**
+If you use PostgreSQL, for instance, you will get an error.
+PostgreSQL will not process this query, it will give you an error to the effect that the `time_utc` column is not included in an aggregation function nor in a `GROUP BY` clause.
+**Personally, I like getting this error message because, in such a case, I have done something wrong. It's meaningless to interpret a non-aggregated column like `time_utc` when other columns have been aggregated.**
+
 ## Conclusion and Summary
 
 ### Other Resources
