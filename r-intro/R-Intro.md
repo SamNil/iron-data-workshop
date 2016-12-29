@@ -709,6 +709,62 @@ iron[iron$date == '2016-08-15' | iron$date == '2016-07-31', 'date']
 
 Similar to the last example, subset the `iron` data frame to just those entries between from date `2016-08-15` and from station 5.
 
+## Dates and Time in R
+
+It is challenging to represent and to manipulate dates and times in a computing environment.
+We have made some strong suggestions for the representation of date data: storing it as an integer in `YYYYMMDD` format so that it can sorted, incremented, and displayed with no confusion.
+
+Time data are more difficult to represent and analyze, however.
+This is because, unlike dates, time data are cyclical.
+If we conceive of our time data as a *time series*, that is, a sequence of data points taken serially in time, we can use some built-in R support for the analysis of time series.
+
+```r
+?ts
+```
+
+**To use R's time series capabilities, we need regularly spaced observations.**
+We'll subset part of the iRON data to a single station and a period we know has complete coverage every 20 minutes, with no data dropouts.
+
+```r
+iron.s5 <- subset(iron, station_id == 5 & date >= 20160801 & date < 20160810)
+```
+
+**We look at the first and last rows of this new data frame to get a sense when our time series begins and ends.**
+
+```r
+head(iron.s5, 1)
+tail(iron.s5, 1)
+```
+
+Now, we're ready to create a time series in R using the `ts()` function.
+
+```r
+air.temp.ts <- with(iron.s5,
+  ts(data = air_temp_f, start = c(20160801, 1), end = c(20160809, 72),
+    frequency = 72))
+```
+
+The `data` argument takes a vector of values.
+We can only represent one measurement field at a time; here we've chosen air temperature.
+The `frequency` argument tells R how many measurements are in each *measurement period.*
+For convenience, we've arbitrarily defined the measurement period as a day; **this means that our display of and reference to the data will be based on the numeric dates we're used to.**
+Because the data are produced 3 times an hour for every hour over a 24-hour period, we have 3 times 24 or 72 measurements per day; thus, `frequency` is set to 72.
+The `start` and `end` arguments indicate the first and last time points in the series.
+We give each argument two numbers: the first is the index of the period (in this case, the starting or ending numeric date), the second number is the index of the measurement within that period.
+
+**R will recycle numbers from the `data` vector to match our time series, thus, we need to make sure that we have the right number of measurements.**
+
+```r
+length(air.temp.ts) == length(iron.s5$air_temp_f)
+```
+
+Now that we've correctly defined our time series, we can begin with basic plotting and analysis.
+
+```r
+plot(air.temp.ts, ylab = 'Degrees F', xlab = 'Date')
+title('Air Temperature (F)')
+```
+
 ## Connecting to SQLite
 
 ```r
