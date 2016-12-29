@@ -170,6 +170,21 @@ Expressions can use any fields, any arithmetic operators `(+, -, *, and /)` and 
 Write a query that returns the `air_temp_f` column in degrees Kelvin.
 The formula for conversion from degrees Fahrenheit to degrees Kelvin is: `[K] = ([°F] + 459.67) ×  5⁄9`.
 
+## Aliases
+
+When creating derived columns, the column heading becomes whatever formula we used to derive its values.
+This often results in long, unreadable column names, like in the last example.
+
+    SELECT date, round((air_temp_f - 32) * (5/9.0), 2)
+      FROM readings;
+
+We can rename any column by creating an alias in the output.
+
+    SELECT date, round((air_temp_f - 32) * (5/9.0), 2) AS air_temp_c
+      FROM readings;
+
+Here, `AS` follows the column name or a formula and is followed by the new name of the column and, if there are more columns to be selected, a comma after the name name.
+
 ## Filtering
 
 **One of the most powerful features of a database is the ability to filter data, i.e., to select only those records that match certain criteria.**
@@ -348,16 +363,18 @@ However, that quantity isn't very scientifically meaningful because it spans so 
 **If we want to aggregate within groups, such as within dates or within stations, we can add a `GROUP BY` clause to our query.**
 For instance, here's a count of the number of records for each station:
 
-    SELECT station_id, count(air_temp_f)
+    SELECT station_id, count(air_temp_f) AS num_records
       FROM readings
      GROUP BY station_id;
 
 `GROUP BY` tells SQL what field or fields we want to use to aggregate the data.
 **If we want to group by multiple fields, we give `GROUP BY` a comma-separated list.**
 
-    SELECT station_id, date, count(air_temp_f)
+    SELECT station_id, date, count(air_temp_f) AS num_records
       FROM readings
      GROUP BY station_id, date;
+
+As we saw before, it's often helpful to use a column alias with `AS`.
 
 ### Challenge: Aggregation
 
@@ -399,6 +416,227 @@ For instance, if we see `23:40` in the `time_utc` field on `20160731`, this coul
 If you use PostgreSQL, for instance, you will get an error.
 PostgreSQL will not process this query, it will give you an error to the effect that the `time_utc` column is not included in an aggregation function nor in a `GROUP BY` clause.
 **Personally, I like getting this error message because, in such a case, I have done something wrong. It's meaningless to interpret a non-aggregated column like `time_utc` when other columns have been aggregated.**
+
+### Filtering on Aggregates
+
+**We've seen how we can use a `WHERE` clause to filter records based on some criteria.**
+**What if we wanted to filter aggregated records?**
+For instance, we might want to find those days where the average daily temperature was above freezing.
+
+    SELECT date, avg(air_temp_f) AS avg_daily_air_temp
+      FROM readings
+     WHERE avg_daily_air_temp > 32
+     GROUP BY date;
+
+**Why doesn't this work?**
+Recall the order of database operations.
+
+**We need to introduce the `HAVING` clause for this kind of aggregation.**
+
+    SELECT date, avg(air_temp_f) AS avg_daily_air_temp
+      FROM readings
+     GROUP BY date
+    HAVING avg_daily_air_temp > 32;
+
+We can, however, use the `ORDER BY` clause in the same way we've been using it.
+
+    SELECT date, avg(air_temp_f) AS avg_daily_air_temp
+      FROM readings
+     GROUP BY date
+    HAVING avg_daily_air_temp > 32
+     ORDER BY date DESC;
+
+### Challenge: Filtering on Aggregates
+
+Under normal circumstances, the iRON stations each record 3 times an hour for 24 hours a day, resulting in a total of 72 readings per day per station.
+Write a query that returns, from the `readings` table, the `station_id` and `date` along with the number of records for each `station_id` on each `date`, only for dates where the station recorded fewer than 72 readings.
+
+## Saving Queries
+
+We've learned how to do some interesting analyses inside our database.
+It's not uncommon that we would want to run the same analysis more than once, for monitoring or reporting purposes, as two examples.
+SQL databases come with a powerful tool to help us save our queries for later re-use.
+**Views are a form of query that is saved in the database, and can be used to look at, filter, and even update information.**
+We can think of Views as Tables; they are also called Table Views.
+We can read, aggregate, and filter information from several tables using a single View.
+
+For example, let's say we wanted to look at the average daily temperature for each station.
+
+    SELECT station_id, date, round(avg(air_temp_f), 2) AS avg_daily_air_temp_f
+      FROM readings
+     GROUP BY station_id, date;
+
+To save the results of this query as a view:
+
+    CREATE VIEW avg_daily_air_temp_by_station AS
+    SELECT station_id, date, round(avg(air_temp_f), 2) AS avg_daily_air_temp_f
+      FROM readings
+     GROUP BY station_id, date;
+
+Now, we can retrieve the results of that query anytime as:
+
+    SELECT * FROM avg_daily_air_temp_by_station;
+
+If we want to get rid of the View, for whatever reason, we can:
+
+    DROP VIEW avg_daily_air_temp_by_station;
+
+## Combining Data
+
+**Take a look at your handout.**
+What are some of the disadvantages of the "combined" format?
+
+- We have redundant information in the table; a given `station_id` will always have the same `latitude` and `longitude` along with other attributes. For large tables, this could require a lot more disk space.
+- Moreover, if we realize, for instance, that the `soil_type` at a particular station is wrong, we have to change multiple records in the database. What's worse, we may have to guess which records to change, since other soil types may have been specified for that same station (say, by a different field technician).
+- Let's say that station 5 had just been installed and had yet to start recording any data other than the one test measurement you see in the table. If, for whatever reason, we deleted that test record, then the fact that we have a station 5 that is coming online soon, along with all of its attributes such as location and soil type, are gone from our database; that is, we lose more information than just the measurement itself.
+- Finally, the relational data keeps alike data together. It isn't just about having *more tables*; for instance, we could imagine having a separate table for each station with the same measurement fields. This wouldn't be helpful, because each station is measuring the same thing.
+
+**Relational layouts solve these problems. Take a look at the relational layout on the backside of your handout.**
+One apparent disadvantage of a relational layout is that sometimes we will want to see information from multiple tables displayed together.
+
+To combine data from two or more tables, relational databases like SQLite  use a `JOIN` clause, which comes after the `FROM` clause.
+We also need to tell the database management system which columns provide the link between the two tables using the word `ON`.
+
+    SELECT *
+      FROM readings
+      JOIN stations
+        ON readings.station_id = stations.station_id;
+
+`ON` is like `WHERE`; it filters things out according to a test condition.
+We use the `table.colname` format to distinguish the columns in each table.
+
+    SELECT readings.datetime_utc, readings.air_temp_f, stations.elevation_m
+      FROM readings
+      JOIN stations
+        ON readings.station_id = stations.station_id;
+
+**With this join, every value of the `station_id` field from one table is compared to every value in the `station_id` field of the other table. Only those records where the value matches are returned.**
+This is called a "many-to-many" mapping.
+Because there is only 1 record in the `stations` table for each unique value of `station_id`, the result of joining this table to `readings` is a table with the same number of rows as the `readings` table (4,323 rows).
+If there were 2 records in the `stations` table for each distinct `station_id` in the `readings` table, we'd have twice as many rows.
+
+### Challenge: Joins and Aggregation
+
+Write a query that returns the elevation and all-time average temperature for each station, excluding those records where there is rainfall recorded.
+*Hint:* The `WHERE` clause must come after the `JOIN` clause.
+
+### Aggregation and the Order of Operations
+
+Let's examine the answer to the challenge question above.
+
+    SELECT readings.station_id, stations.elevation_m, avg(readings.air_temp_f)
+      FROM readings
+      JOIN stations ON readings.station_id = stations.station_id
+     WHERE readings.rain_inches = 0
+     GROUP BY readings.station_id
+
+**It's important that we understand how this query is processed by the database.**
+We know that the `WHERE` clause is one of the first things the database manager evaluates.
+However, we've included a `JOIN` statement here.
+**Are we able to filter on joined columns?**
+Let's modify the previous query so that we're considering only stations above 2000 meters elevation.
+
+    SELECT readings.station_id, stations.elevation_m, avg(readings.air_temp_f)
+      FROM readings
+      JOIN stations ON readings.station_id = stations.station_id
+     WHERE stations.elevation_m > 2000
+     GROUP BY readings.station_id
+
+Since this worked, we can conclude that the database manager evaluates the `JOIN` before it evaluates the `WHERE` clause.
+Thus, the order of operations in this query is:
+
+- `JOIN` the tables together `ON` the matching columns;
+- Filter entries according to the `WHERE` condition;
+- `SELECT` the specified columns in the table and its joined tables;
+- Finally, `GROUP` the results `BY` the unique values of a specified column.
+
+### Different Kinds of Joins
+
+There are multiple ways of joining two (or more) tables together with `JOIN`.
+[See this graphic](https://commons.wikimedia.org/wiki/File:SQL_Joins.svg) for an illustration of what's possible with SQL `JOIN`.
+
+### Aliases
+
+**As queries get more complex, table and column names can get long and unwieldy. Just as we saw with column names, we can use aliases to assign new names to tables.**
+
+We can alias table names, as in this example.
+
+    SELECT r.station_id, s.elevation_m, avg(r.air_temp_f)
+      FROM readings AS r
+      JOIN stations AS s ON r.station_id = s.station_id
+     WHERE s.elevation_m > 2000
+     GROUP BY r.station_id
+
+*However*, remember that computer code, whether R code or SQL code or something else, is primarily meant to be read and perhaps modified by humans.
+You want to make sure that the aliases you've chosen don't impair your ability or the ability of someone else to correctly interpret your code.
+
+## Connecting to SQL in R
+
+```r
+install.packages('RSQLite')
+```
+
+**Because the database manager provides all sorts of services for managing and protecting the integrity of our data, we don't open the database like a regular file. Instead, we open a connection to the database and use this connection to issue commands to the database manager.**
+
+```r
+library(RSQLite)
+conn <- dbConnect(SQLite(), dbname='/Users/arthur/Desktop/iron.sqlite')
+```
+
+I've specified the file path to the SQLite database on my machine.
+It may be different on your machine.
+On Windows machines, the path to your Desktop may be:
+
+```
+C:\Users\<username>\Desktop
+```
+
+**Now, `conn` is a variable in R that represents our connection to the database.**
+First, let's take a look at what tables are available in this database.
+
+```r
+tables <- dbListTables(conn)
+tables
+```
+
+Note that the result is an R character vector.
+
+```r
+class(tables)
+```
+
+Now, we can issue SQL commands to the database from the R environment.
+The advantage of doing this in R is that, just like in the last example, the results of our queries will be in the form of R data types.
+We can then take everything we've learned about data analysis in R and apply it to the data stored in our database.
+
+```r
+readings <- dbGetQuery(conn, 'SELECT * FROM readings')
+head(readings)
+```
+
+**Note that the result of our query is, specifically, a `data.frame`.**
+
+```r
+class(readings)
+```
+
+When we have a data frame in R we can get quick summary statistics with the `summary()` function.
+
+```r
+summary(readings)
+```
+
+### Disconnecting from the Database
+
+It's important to realize that the data frame representation of our SQL table is just a copy of the data from the database.
+We can safely make any changes we want to the data frame without affecting our data in the database.
+Moreover, once we have pulled our data from the database and have no need for running further queries, we should close our connection to the database.
+We should do this before running any analysis on our data.
+
+```r
+dbDisconnect(conn)
+rm(conn)
+```
 
 ## Conclusion and Summary
 
