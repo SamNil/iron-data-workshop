@@ -166,6 +166,21 @@ We can check to see that a certain result is what we expect it to be by using co
 x2 == 1.5
 ```
 
+Other comparison operators available to us include the "not equal" operator:
+
+```r
+x2 != 1.5
+```
+
+As well as "greater than" and "less than" operators:
+
+```r
+3 > 4
+3 >= 4
+3 < 4
+3 <= 4
+```
+
 ### Machine Precision
 
 Recall our mathematical functions and `pi`.
