@@ -89,9 +89,14 @@ Typically, you create a facet on a particular column. The facet summarizes the c
 ````
   - Locate the station_name column
   - Click the down arrow and choose > Facet > Text facet
-  - In the left margin, you'll see a box containing every unique, distinct value in the station_name column and Refine shows you how many times that value occurs in the column (a count), and allows you to sort (order) your facets by name or count.
-  - Try editing. For example, you could change the single 'Glenwod Springs' to 'Glenwood Springs' if you knew it was a typo.
-  - Note that at any time, in any cell of the Facet box, or data cell in the Refine window, you have access to "edit" and can fix an error immediately. Refine will even ask you if you'd like to make that same correction to every value it finds like that one (or not).
+  - In the left margin, you'll see a box containing every unique, distinct value in the 
+  station_name column and Refine shows you how many times that value occurs in the column 
+  (a count), and allows you to sort (order) your facets by name or count.
+  - Try editing. For example, you could change the single 'Glenwod Springs' to 'Glenwood Springs' 
+  if you knew it was a typo.
+  - Note that at any time, in any cell of the Facet box, or data cell in the Refine window, 
+  you have access to "edit" and can fix an error immediately. Refine will even ask you if you'd 
+  like to make that same correction to every value it finds like that one (or not).
 ````
 
 ## Clustering
@@ -101,10 +106,15 @@ In OpenRefine, clustering refers to the operation of "finding groups of differen
 
 ````
   - Start with the Text Facet you created for the 'station_name" column and click the _Cluster_ button.
-  - In the resulting pop-up window, you can change the algorithm method, and keying function. Try different combinations to see the difference.
-  - For example, with this dataset, the _key collision_ method with the _metaphone3_ keying function does a pretty good job. 
-  - Intentional errors in these station names have been introduced to show how errors (typos) in any position can be found with this method. All errors can then be fixed by simply entering the correct value in the box on the right. Often, the algorithm has guessed correctly. 
-  - After corrections are made in this window, you can either Merge and Close the Cluster pop-up, or Merge and Re-cluster.
+  - In the resulting pop-up window, you can change the algorithm method, and keying function. Try 
+  different combinations to see the difference.
+  - For example, with this dataset, the _key collision_ method with the _metaphone3_ keying function 
+  does a pretty good job. 
+  - Intentional errors in these station names have been introduced to show how errors (typos) in any 
+  position can be found with this method. All errors can then be fixed by simply entering the correct 
+  value in the box on the right. Often, the algorithm has guessed correctly. 
+  - After corrections are made in this window, you can either Merge and Close the Cluster pop-up, or 
+  Merge and Re-cluster.
 ````
 
 [More on clustering](https://github.com/OpenRefine/OpenRefine/wiki/Clustering-In-Depth)
@@ -121,9 +131,13 @@ If data in a column needs to be split into multiple columns, and the strings in 
   - Remove the check in the box that says "remove column after splitting"
   - You'll get two extra columns called, in this case: datetime_utc 1, datetime_utc 2
   - Try to rename the datetime utc 1 column to 'date'. What happens when you do that?
-  - To Undo create columns, look just above the station_name facet in the left side of the screen. Click where it says Undo / Redo. Click back one step (all steps, all changes are saved here). Just go back to the previous step and click. The extra columns will be gone.
+  - To Undo create columns, look just above the station_name facet in the left side of the screen. 
+  Click where it says Undo / Redo. Click back one step (all steps, all changes are saved here). 
+  Just go back to the previous step and click. The extra columns will be gone.
   
-Note: a very common data typo is extra spaces or tabs, which can be hard for human eyes to see but read differently by a computer. These can be easily removed with another Refine feature in the column drop-down choices. See drop-down: Edit cells > Common transforms > Remove leading and trailing whitespace
+Note: a very common data typo is extra spaces or tabs, which can be hard for human eyes to see but read 
+differently by a computer. These can be easily removed with another Refine feature in the column drop-down 
+choices. See drop-down: Edit cells > Common transforms > Remove leading and trailing whitespace
   
 ````
 
@@ -161,7 +175,8 @@ you'll see a list of your projects. You can click on any one of them to open it 
 You can also export a project, for instance if you wanted to send it to someone else. 
 
 ````
-  - Go to the 'Export' button in the top right. Click 'Export project'. This will save a compressed file that you can then open in OpenRefine that contains all the data and steps. 
+  - Go to the 'Export' button in the top right. Click 'Export project'. This will save a compressed file 
+  that you can then open in OpenRefine that contains all the data and steps. 
 ````
 
 ## Exporting Cleaned Data 
@@ -169,7 +184,8 @@ You can also export a project, for instance if you wanted to send it to someone 
 Save your work when you are done by exporting it in your desired format. Save your files with meaningful names, no spaces. Refine does not change your original dataset (hooray!).
 
 ````
-  - Go to 'Export' in the top right. Click on the file type you want to export the data in. 'Tab-separated values' or 'Comma-separated values' would be good choices. 
+  - Go to 'Export' in the top right. Click on the file type you want to export the data in. 
+  'Tab-separated values' or 'Comma-separated values' would be good choices. 
 ````
 
 That file will get exported to your default Download directory. That file can then be eaily opened in a spreadsheet program or imported into programs like R or Python.
