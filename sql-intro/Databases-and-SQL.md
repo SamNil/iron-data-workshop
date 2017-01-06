@@ -19,7 +19,6 @@ Spreadsheets are good for doing analysis but they don't handle large or complex 
 
 When we are using a spreadsheet, we put formulas into cells to calculate new values based on old ones.
 When we are using a database, we send commands (usually called queries) to a database manager: a program that manipulates the database for us.
-**This is analogous to what we saw with the Unix shell.**
 Here, the database manager reads the user's command, retrieves and manipulates data from the database according to what the user asked for, and returns it for display.
 
 ## Getting Started with SQLite Manager
@@ -52,7 +51,7 @@ That client is called SQLite Manager and it is available as a plug-in for Mozill
 
 ### Our First Query
 
-Let's write a query to find out which species are represented in the survey data.
+Let's write a query to find out which stations are represented in the survey data.
 
     sqlite> SELECT station_id, name FROM stations;
 
@@ -220,7 +219,7 @@ If we want to combine the last two queries, we can use the keywords `AND` and `O
 ### Challenge: Filtering
 
 Write a query that returns readings with rainfall amounts (`rain_inches`) greater than zero.
-**Bonus:** Check that there was never any rainfall recorded when the air temperature was below zero.
+**Bonus:** Check that there was never any rainfall recorded when the air temperature was below 32 degrees F.
 
 ## Building More Complex Queries
 
