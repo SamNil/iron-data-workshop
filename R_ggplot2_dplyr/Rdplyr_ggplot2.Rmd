@@ -1,0 +1,845 @@
+---
+output: html_document
+---
+# Data Manipulation and Plotting in R: the dplyr and ggplot2 packages
+
+```{r, echo=FALSE, purl=FALSE, message = FALSE}
+setwd("/Users/brooklebee/Desktop/iron-data-workshop/")
+iron <- read.csv("data/iron.csv")
+iron$station_id <- as.factor(iron$station_id)
+```
+
+------------
+
+> ## Learning Objectives
+>
+> By the end of this lesson the learner will:
+>
+> * Know the six basic data manipulation 'verbs' in the dplyr package
+> * Be able to select subsets of columns from a dataframe, and filter rows according to a condition(s)
+> * Use the 'pipe' operator to link together a sequence of dplyr verbs
+> * Be able to create new columns of data by applying functions to existing columns using the 'mutate' command
+> * Know how to export a dataframe to a csv file using write.csv
+
+------------
+
+# Data Manipulation using dplyr
+
+Bracket subsetting is handy, but it can be cumbersome and difficult to read,
+especially for complicated operations. Enter `dplyr`. `dplyr` is a package for
+making data manipulation easier. As you'll see, by data 'manipulation' we mean 
+organizing and re-organizing your data so that you can better understand and 
+present them, not any less ethical sense of the word.
+
+Packages in R are basically sets of additional functions that let you do more
+stuff. The functions we've been using so far, like `str()` or `data.frame()`,
+come built into R; packages give you access to more of them. Before you use a
+package for the first time you need to install it on your machine, and then you
+should import it in every subsequent R session when you need it.
+
+```{r, eval = FALSE, purl = FALSE}
+install.packages("dplyr")
+```
+
+You might get asked to choose a CRAN mirror -- this is basically asking you to
+choose a site to download the package from. The choice doesn't matter too much;
+we recommend the RStudio mirror.
+
+```{r, message = FALSE, purl = FALSE}
+library("dplyr")    ## load the package
+```
+
+## What is `dplyr`?
+
+The package `dplyr` provides easy tools for the most common data manipulation
+tasks. It is built to work directly with data frames. The thinking behind it was
+largely inspired by the package `plyr` which has been in use for some time but
+suffered from being slow in some cases.` dplyr` addresses this by porting much
+of the computation to C++. An additional feature is the ability to work directly
+with data stored in an external database. The benefits of doing this are
+that the data can be managed natively in a relational database, queries can be
+conducted on that database, and only the results of the query returned.
+
+This addresses a common problem with R in that all operations are conducted in
+memory and thus the amount of data you can work with is limited by available
+memory. The database connections essentially remove that limitation in that you
+can have a database of many 100s GB, conduct queries on it directly, and pull
+back just what you need for analysis in R.
+
+To learn more about `dplyr` after the workshop, you may want to check out this
+[handy dplyr cheatsheet](http://www.rstudio.com/wp-content/uploads/2015/02/data-wrangling-cheatsheet.pdf).
+
+
+## Selecting columns and filtering rows
+
+We're going to learn some of the most common `dplyr` functions: `select()`,
+`filter()`, `mutate()`, `group_by()`, and `summarize()`. To select columns of a
+data frame, use `select()`. The first argument to this function is the data
+frame (`iron`), and the subsequent arguments are the columns to keep.
+
+```{r, results = 'hide', purl = FALSE}
+iron_select <- select(iron, station_id, datetime_utc, rain_inches, air_temp_f)
+head(iron_select)
+```
+
+To choose rows, use `filter()`:
+
+```{r, purl = FALSE}
+iron_station4 <- filter(iron, station_id == 4)
+head(iron_station4)
+```
+
+## Pipes
+
+But what if you wanted to select and filter at the same time? There are three
+ways to do this: use intermediate steps, nested functions, or pipes. With the
+intermediate steps, you essentially create a temporary data frame and use that
+as input to the next function. This can clutter up your workspace with lots of
+objects. You can also nest functions (i.e. one function inside of another).
+This is handy, but can be difficult to read if too many functions are nested as
+the process from inside out. The last option, pipes, are a fairly recent
+addition to R. Pipes let you take the output of one function and send it
+directly to the next, which is useful when you need to do many things to the same
+data set.  Pipes in R look like `%>%` and are made available via the `magrittr`
+package installed as part of `dplyr`.
+
+```{r, purl = FALSE, eval = FALSE}
+iron %>%
+  filter(rain_inches > 0) %>%
+  select(station_id, datetime_utc, rain_inches)
+```
+
+In the above we use the pipe to send the `iron` data set first through
+`filter`, to keep rows where `rain` was greater than 0, and then through `select`
+to keep the `station_id`, `datetime_utc`, and `rain_inches` columns. When the data frame 
+is being passed to the `filter()` and `select()` functions through a pipe, we don't need 
+to include it as an argument to these functions anymore.
+
+If we wanted to create a new object with this smaller version of the data we
+could do so by assigning it a new name:
+
+```{r, purl = FALSE}
+iron_rain <- iron %>%
+  filter(rain_inches > 0) %>%
+  select(station_id, datetime_utc, rain_inches)
+
+head(iron_rain)
+```
+
+Note that the final data frame is the leftmost part of this expression.
+
+> ### Challenge {.challenge}
+>
+>  Using pipes, subset the data to include rows collected at stations 1 or 2,
+>  and retain the columns `date`, `time_utc`, and `air_temp_f.`
+
+<!---
+```{r, eval=FALSE, purl=FALSE}
+## Answer
+iron %>%
+    filter(station_id == 1 | station_id == 2) %>%
+    select(date, time_utc, air_temp_f)
+```
+--->
+
+
+### Mutate
+
+Frequently you'll want to create new columns based on the values in existing
+columns, for example to do unit conversions, or find the ratio of values in two
+columns. For this we'll use `mutate()`.
+
+To create a new column of rain in centimeters:
+
+```{r, purl = FALSE, eval = FALSE}
+iron %>%
+  mutate(rain_cm = rain_inches / 2.54)
+```
+
+If this runs off your screen and you just want to see the first few rows, you
+can use a pipe to view the `head()` of the data (pipes work with non-dplyr
+functions too, as long as the `dplyr` or `magrittr` packages are loaded).
+
+```{r, purl = FALSE}
+iron %>%
+  mutate(rain_cm = rain_inches / 2.54) %>%
+  head
+```
+
+The first few rows all have 0 rain, so if we wanted to remove those we could
+insert a `filter()` in this chain:
+
+```{r, purl = FALSE}
+iron %>%
+  filter(rain_inches != 0) %>%
+  mutate(rain_cm = rain_inches / 2.54) %>%
+  head
+```
+
+The `!` symbol negates a statement, so `!=` means 'not equal'. Sometimes you might want to 
+filter out NAs. `is.na()` is a function that determines whether something is or is not an 
+`NA`. You could use `!is.na()` to ask for everything that is not an `NA`.
+
+> ### Challenge {.challenge}
+>
+>  Create a new dataframe from the iron data that meets the following
+>  criteria: contains only the `station_id` column and a column that contains
+>  values that are ten times the `water_content_8inch` values (e.g. a new column
+>  `water_content_8inch_ten`). In this `water_content_8inch_ten` column, all 
+>  values are greater than 2.
+>
+>  **Hint**: think about how the commands should be ordered to produce this data frame!
+
+<!---
+```{r, eval=FALSE, purl=FALSE}
+## Answer
+iron_wc_8in_ten <- iron %>%
+    mutate(water_content_8inch_ten = water_content_8inch * 10) %>%
+    filter(water_content_8inch_ten > 2) %>%
+    select(station_id, water_content_8inch_ten)
+```
+--->
+
+   
+### Split-apply-combine data analysis and the summarize() function
+
+Many data analysis tasks can be approached using the "split-apply-combine"
+paradigm: split the data into groups, apply some analysis to each group, and
+then combine the results. `dplyr` makes this very easy through the use of the
+`group_by()` function.
+
+
+#### The `summarize()` function
+
+`group_by()` is often used together with `summarize()` which collapses each
+group into a single-row summary of that group.  `group_by()` takes as argument
+the column names that contain the **categorical** variables for which you want
+to calculate the summary statistics. So to view mean the `air_temp_f` by station:
+
+```{r, purl = FALSE}
+iron %>%
+  group_by(station_id) %>%
+  summarize(mean_temp = mean(air_temp_f, na.rm = TRUE))
+```
+
+You can group by multiple columns too, if you have another factor. Let's make a variable 
+'rained' to represent whether non-zero rainfall was measured, then use dplyr to group by 
+station_id and this new variable. For the first part, we're going to use an 
+if...else statement, which we will not cover in detail but which may prove useful. I 
+recommend checking out [this resource](https://www.programiz.com/r-programming/if-else-statement) for more information. 
+
+```{r, purl = FALSE}
+iron$rained <- ifelse(iron$rain_inches == 0, "N", "Y")
+class(iron$rained)
+iron$rained <- as.factor(iron$rained)
+
+iron %>%
+  group_by(station_id, rained) %>%
+  summarize(mean_temp = mean(air_temp_f, na.rm = TRUE))
+```
+
+If you are working with a dataset with missing data, 'na.rm = TRUE' can become important. 
+Some R functions (like min()) will output `NaN` (which refers to "Not a Number") if given 
+a set of numeric values that contain `NA`. To avoid this, we could remove the missing 
+values before we attempt to calculate the summary statistics with `!is.na()`. Because the 
+missing values are removed, we can omit `na.rm=TRUE` when computing the mean:
+
+```{r, purl = FALSE}
+iron %>%
+  filter(!is.na(air_temp_f)) %>%
+  group_by(station_id, rained) %>%
+  summarize(mean_temp = mean(air_temp_f))
+```
+
+You may also have noticed, that the output from these calls don't run off the
+screen anymore. That's because `dplyr` has changed our `data.frame` to a
+`tbl_df`. This is a data structure that's very similar to a data frame; for our
+purposes the only difference is that it won't automatically show tons of data
+going off the screen, while displaying the data type for each column under its
+name. If you want to display more data on the screen, you can add the `print()`
+function at the end with the argument `n` specifying the number of rows to
+display:
+
+```{r, purl = FALSE}
+iron %>%
+  filter(!is.na(air_temp_f)) %>%
+  group_by(station_id, rained) %>%
+  summarize(mean_temp = mean(air_temp_f)) %>%
+  print(n=15)
+```
+
+Once the data is grouped, you can also summarize multiple variables at the same
+time (and not necessarily on the same variable). For instance, we could add a
+column indicating the minimum temperature for each station:
+
+```{r, purl = FALSE}
+iron %>%
+  filter(!is.na(air_temp_f)) %>%
+  group_by(station_id) %>%
+  summarize(mean_temp = mean(air_temp_f),
+            min_temp = min(air_temp_f))
+```
+
+#### Tallying
+
+When working with data, it is also common to want to know the number of
+observations found for each factor or combination of factors. For this, `dplyr`
+provides `tally()`. For example, if we wanted to group by whether it rained and find the
+number of rows of data for rained Y versus rained N, we would do:
+
+```{r, purl = FALSE}
+iron %>%
+  group_by(rained) %>%
+  tally()
+```
+
+Here, `tally()` is the action applied to the groups created by `group_by()` and
+counts the total number of records for each category.
+
+> ### Challenge {.challenge}
+>
+> How many measurements were made at each station for rained Y versus rained N?
+
+<!---
+```{r, echo=FALSE, purl=FALSE}
+## Answer
+iron %>%
+    group_by(station_id, rained) %>%
+    tally()
+```
+--->
+
+> ### Challenge {.challenge}
+>
+> Use `group_by()` and `summarize()` to find the mean, min, and max air
+> temperature for each station (using `station_id`).
+
+<!---
+```{r, echo=FALSE, purl=FALSE}
+## Answer
+iron %>%
+    filter(!is.na(air_temp_f)) %>%
+    group_by(station_id) %>%
+    summarize(
+        mean_temp = mean(air_temp_f),
+        min_temp = min(air_temp_f),
+        max_temp = max(air_temp_f)
+    )
+```
+--->
+
+> ### Challenge {.challenge}
+>
+> What was the most rain measured on any one day at any station?
+
+<!---
+## Answer
+```{r, echo=FALSE, purl=FALSE}
+maxrain <- iron %>%
+    filter(!is.na(rain_inches)) %>%
+    group_by(station_id, date) %>%
+    summarize(daily_rain_in = sum(rain_inches)) %>%
+    filter(daily_rain_in == max(daily_rain_in)) %>%
+    arrange(desc(daily_rain_in))
+```
+--->
+
+
+# Exporting data
+
+Now that you have learned how to use `dplyr` to extract the information you need
+from the raw data, or to summarize your raw data, you may want to export these
+new datasets to share them with your collaborators or for archival.
+
+Similarly to the `read.csv()` function used to read in CSV into R, there is a
+`write.csv()` function that generates CSV files from data frames.
+
+Before using it, we are going to create a new folder, `data_output` in our
+working directory that will store this generated dataset. We don't want to write
+generated datasets in the same directory as our raw data. It's good practice to
+keep them separate. The `data` folder should only contain the raw, unaltered
+data, and should be left alone to make sure we don't delete or modify it; on the
+other end the content of `data_output` directory will be generated by our
+script, and we know that we can delete the files it contains because we have the
+script that can re-generate these files.
+
+We can save our dataframe as a CSV file in our `data_output`
+folder. By default, `write.csv()` includes a column with row names (in our case
+the names are just the row numbers), so we need to add `row.names = FALSE` so
+they are not included:
+
+```{r, purl=FALSE, eval=FALSE}
+write.csv(iron, file="data_output/iron_unchanged.csv",
+          row.names=FALSE)
+```
+
+
+### Quick break to talk a bit more about dates and datetimes in R
+
+As we've already discussed, dates and times can be difficult to represent correctly when
+communicating with computers (and other people, too!). We've recommended some ways to 
+store dates that can help with this, including some standard formats.
+
+Here we're going to briefly introduce another way to deal with dates AND times in R 
+using POSIX format. For more information and other approaches, check out 
+[this helpful guide](https://www.stat.berkeley.edu/~s133/dates.html), from which this 
+section borrows heavily.
+
+POSIX stands for "portable operating system interface" and is used by many operating 
+systems, including UNIX systems. Dates stored in the POSIX format are date/time values 
+and allow modification of time zones. POSIX date classes store times to the nearest 
+second, which can be useful if you have data at that scale.
+
+There are two POSIX date/time classes, which differ in the way that the values are stored 
+internally. The POSIXct class stores date/time values as the number of seconds since 
+January 1, 1970, while the POSIXlt class stores them as a list with elements for 
+second, minute, hour, day, month, and year, among others. Unless you need the list nature 
+of the POSIXlt class, the POSIXct class is the usual choice for storing dates in R. 
+The ggplot2 plotting package that we will introduce next uses the POSIXct class.
+
+We've generated a column 'datetime_utc' in the iron.csv dataset that is already in the
+default input format for POSIX dates: the year, followed by the month and day, separated 
+by slashes or dashes. For date/time values, the date may be followed by white space (e.g.
+space or tab) and a time in the form hour:minutes:seconds or hour:minutes, which then 
+may be followed by white space and the time zone. Here are some examples of valid POSIX 
+inputs:
+
+1915/6/16
+2005-06-24 11:25
+1990/2/17 12:20:05
+2012-7-31 12:20:05 MST
+
+What class is the iron$datetime_utc column in after you import it into R? If it's not already in POSIX format, you'll need to modify it using the as.POSIX() function.
+
+```{r, purl=FALSE}
+## Formate datetime_utc appropriately.
+class(iron$datetime_utc)
+iron$datetime_utc <- as.POSIXct(iron$datetime_utc, tz="UTC")
+class(iron$datetime_utc)
+
+```
+
+Great! That sets us up to start plotting values over time.
+
+
+# Creating beautiful plots with ggplot2
+
+#### Disclaimer
+
+We will be using the functions in the ggplot2 package. R has powerful built-in
+plotting capabilities, but for this exercise, we will be using the ggplot2
+package, which facilitates the creation of highly-informative plots of
+structured data.
+
+> ### Learning Objectives
+>
+> By the end of this lesson the learner will:
+>
+> * Be able to create a ggplot object
+> * Be able to set universal plot settings
+> * Be able to modify an existing ggplot object
+> * Be able to change the aesthetics of a plot such as colour
+> * Be able to edit the axis labels 
+> * Know how to use a step-by-step approach to build complex plots
+> * Be able to create, scatter plots, box plots and time series plots
+> * Use the facet_ commands to create a collection of plots splitting the data by a factor variable
+> * Be able to create customized plot styles to meet their needs
+
+We start by loading the required packages.
+
+```{r, purl=FALSE}
+# plotting package
+library(ggplot2)
+
+# modern data frame manipulations
+library(dplyr)
+```
+
+## Plotting with ggplot2
+
+We will all make the same plot using the `ggplot2` package.
+
+`ggplot2` is a plotting package that can create complex plots iteratively
+from data in a dataframe. It uses default settings, which help creating
+publication quality plots with a minimal amount of settings and tweaking.
+
+ggplot graphics are built step by step by adding new elements.
+
+To build a ggplot we need to:
+
+- bind the plot to a specific data frame using the `data` argument
+
+```{r, eval=FALSE}
+ggplot(data = iron)
+```
+
+- define aesthetics (`aes`), by selecting the variables to be plotted and the variables to define the presentation
+     such as plotting size, shape color, etc.,
+
+```{r, eval=FALSE}
+ggplot(data = iron, aes(x = air_temp_f, y = rain_inches))
+```
+
+- add `geoms` -- graphical representation of the data in the plot (points,
+     lines, bars). To add a geom to the plot use `+` operator:
+
+```{r first-ggplot, eval=FALSE}
+ggplot(data = iron, aes(x = air_temp_f, y = rain_inches)) + geom_point()
+```
+
+The `+` in the `ggplot2` package is particularly useful because it allows you
+to modify existing `ggplot` objects. This means you can easily set up plot
+"templates" and conveniently explore different types of plots, so the above
+plot can also be generated with code like this:
+
+```{r, first-ggplot-with-plus, eval=FALSE}
+# Create
+iron_plot <- ggplot(data = iron, aes(x = air_temp_f, y = rain_inches))
+
+# Draw the plot
+iron_plot + geom_point()
+```
+
+Notes:
+
+- Anything you put in the `ggplot()` function can be seen by any geom layers
+  that you add (i.e., these are universal plot settings). This includes the x and
+  y axis you set up in `aes()`.
+- You can also specify aesthetics for a given geom independently of the
+  aesthetics defined globally in the `ggplot()` function.
+
+
+## Building your plots iteratively
+
+Building plots with ggplot is typically an iterative process. We start by
+defining the dataset we'll use, lay the axes, and choose a geom.
+
+```{r create-ggplot-object}
+ggplot(data = iron, aes(x = air_temp_f, y = rain_inches)) +
+    geom_point()
+```
+
+Then, we start modifying this plot to extract more information from it. For
+instance, we can add transparency (alpha) to avoid overplotting.
+
+```{r adding-transparency}
+ggplot(data = iron, aes(x = air_temp_f, y = rain_inches)) +
+    geom_point(alpha = 0.5)
+```
+
+We can also add colors for all the points.
+
+```{r adding-colors}
+ggplot(data = iron, aes(x = air_temp_f, y = rain_inches)) +
+    geom_point(alpha = 0.5, color = "blue")
+```
+
+Or color each station in the plot differently.
+
+```{r color-by-station}
+ggplot(data = iron, aes(x = air_temp_f, y = rain_inches)) +
+    geom_point(alpha = 0.5, aes(color=station_id))
+```
+
+## Boxplot
+
+Visualising the distribution of air temperatures at each station.
+
+```{r boxplot}
+ggplot(data = iron, aes(x = station_id, y = air_temp_f)) +
+    geom_boxplot()
+```
+
+By adding points to boxplot, we can have a better idea of the number of
+measurements and of their distribution:
+
+```{r boxplot-with-points}
+ggplot(data = iron, aes(x = station_id, y = air_temp_f)) +
+    geom_boxplot(alpha = 0) +
+    geom_jitter(alpha = 0.3, color = "tomato")
+```
+
+Notice how the boxplot layer is behind the jitter layer? What could you change in the code to put the boxplot in front of the points?
+
+> ### Challenges
+>
+> Boxplots are useful summaries, but hide the *shape* of the distribution. For
+> example, if there is a bimodal distribution, this would not be observed with a
+> boxplot. An alternative to the boxplot is the violin plot (sometimes known as a
+> beanplot), where the shape (of the density of points) is drawn.
+>
+> - Replace the box plot with a violin plot; see `geom_violin()`
+>
+>
+> In many types of data, it is important to consider the *scale* of the
+> observations.  For example, it may be worth changing the scale of the axis to
+> better distribute the observations in the space of the plot.  Changing the scale
+> of the axes is done similarly to adding/modifying other components (i.e., by
+> incrementally adding commands).
+>
+> - Represent rainfall on the log10 scale; see `scale_y_log10()`.
+>
+> - Create boxplot for `water_content_2inch`.
+>
+> - Add color to the datapoints on your boxplot according to the time at which the measurement was taken (`time_utc`).
+>
+> Hint: Check the class for `time_utc`. Consider changing the class of `time_utc` from factor to numeric. Why does this change how R makes the graph? 
+
+
+## Plotting data across time
+
+Let's start by looking at how air temperature changes over time.
+
+```{r first-time-series}
+ggplot(data = iron, aes(x = datetime_utc, y = air_temp_f)) +
+     geom_line()
+```
+
+Huh, looks like there's a lot of noise there, both due to daily variation and also maybe differences between stations. Let's calculate the mean temperature for each day at each station. To do that we need to group data first and count records within each group, with our old friend dplyr.
+
+```{r}
+daily_air_temp <- iron %>%
+                group_by(date, station_id) %>%
+    			summarize(mean_temp = mean(air_temp_f))
+```
+
+Data across time can be visualised as a line plot with time on the x-axis and counts
+on the y-axis.
+
+```{r mean-time-series}
+ggplot(data = daily_air_temp, aes(x = date, y = mean_temp)) +
+     geom_line()
+```
+
+Unfortunately this looks really weird, for two reasons:
+
+1. We need to treat the dates as dates, rather than integers.
+
+ ```{r fix-date-class}
+class(daily_air_temp$date)
+daily_air_temp$date <- as.Date(as.character(daily_air_temp$date), format='%Y%m%d')
+```
+
+2. We are plotting data for all the stations together. We need to tell ggplot to draw a 
+line for each station by modifying the aesthetic function to include `group = station_id`.
+
+```{r time-series-by-station}
+ggplot(data = daily_air_temp, aes(x = date, y = mean_temp, group = station_id)) +
+    geom_line()
+```
+
+We will be able to distinguish stations in the plot if we add colors.
+
+```{r time-series-with-colors}
+ggplot(data = daily_air_temp, aes(x = date, y = mean_temp, group = station_id, colour = station_id)) +
+    geom_line()
+```
+
+## Faceting
+
+ggplot has a special technique called *faceting* that allows to split one plot
+into multiple plots based on a factor included in the dataset. We will use it to
+make one plot for a time series for each station.
+
+```{r first-facet}
+ggplot(data = daily_air_temp, aes(x = date, y = mean_temp, group = station_id, colour = station_id)) +
+    geom_line() +
+    facet_wrap(~ station_id)
+```
+
+Now we would like to split the line in each plot by whether rain was detected at the same 
+time. To do that we need to calculate means in a data frame grouped by date, station_id, 
+and the variable `rained` we created above.
+
+```{r}
+air_temp_by_rain <- iron %>%
+                group_by(date, station_id, rained) %>%
+    			summarize(mean_temp = mean(air_temp_f))
+    			
+air_temp_by_rain$date <- as.Date(as.character(air_temp_by_rain$date), format='%Y%m%d')
+
+```
+
+We can now make the faceted plot splitting further by whether it rained (at each station):
+
+```{r facet-by-station-and-rain}
+ggplot(data = air_temp_by_rain, aes(x = date, y = mean_temp, group = rained, color = station_id)) +
+     geom_line() +
+     facet_wrap(~ station_id)
+```
+
+Usually plots with white background look more readable when printed.  We can set
+the background to white using the function `theme_bw()`. Additionally you can also remove 
+the grid. 
+
+```{r facet-by-station-and-rain-white-bg}
+ggplot(data = air_temp_by_rain, aes(x = date, y = mean_temp, group = rained, color = station_id)) +
+     geom_line() +
+     facet_wrap(~ station_id) +
+     theme_bw() +
+     theme(panel.grid.major.x = element_blank(), 
+	   panel.grid.minor.x = element_blank(),
+	   panel.grid.major.y = element_blank(),
+	   panel.grid.minor.y = element_blank())
+```
+
+To make the plot easier to read, we can color by whether it rained instead of station ID 
+(stations are already in separate plots, so we don't need to distinguish them further).
+
+```{r facet-by-station-and-rain-colored}
+ggplot(data = air_temp_by_rain, aes(x = date, y = mean_temp, group = rained, color = rained)) +
+    geom_line() +
+    facet_wrap(~ station_id) +
+    theme_bw()
+```
+
+
+## Challenge
+
+> Use what you just learned to create a plot that depicts how the minimum 8-inch water 
+> content of each station changes over time.
+
+<!-- Answer
+```{r average-8in-water-timeseries}
+min_8in_water <- iron %>%
+                group_by(date, station_id) %>%
+    			summarize(min_content_8in = min(water_content_8inch, na.rm=TRUE))
+    			
+# Have to deal with the pesky dates.
+min_8in_water$date <- as.Date(as.character(min_8in_water$date), format='%Y%m%d')
+
+ggplot(data = min_8in_water, aes(x=date, y=min_content_8in, color = station_id, group = station_id)) +
+    geom_line() +
+    theme_bw()
+```
+-->
+
+
+The `facet_wrap` geometry extracts plots into an arbitrary number of dimensions
+to allow them to cleanly fit on one page. On the other hand, the `facet_grid`
+geometry allows you to explicitly specify how you want your plots to be
+arranged via formula notation (`rows ~ columns`; a `.` can be used as
+a placeholder that indicates only one row or column).
+
+Let's modify the previous plot to compare how the weights of male and females
+has changed through time.
+
+```{r mean-rain-time-facet-rain-rows}
+## One column, facet by rows
+ggplot(data = air_temp_by_rain, aes(x = date, y = mean_temp, group = station_id, color = station_id)) +
+    geom_line() +
+    facet_grid(rained ~ .)
+
+```
+
+```{r mean-rain-time-facet-rain-columns}
+# One row, facet by column
+ggplot(data = air_temp_by_rain, aes(x = date, y = mean_temp, group = station_id, color = station_id)) +
+    geom_line() +
+    facet_grid(. ~ rained)
+```
+
+## Customization
+
+Take a look at the [ggplot2 cheat sheet](https://www.rstudio.com/wp-content/uploads/2015/08/ggplot2-cheatsheet.pdf), and
+think of ways to improve the plot. You can write down some of your ideas as
+comments in the Etherpad.
+
+Now, let's change names of axes to something more informative than 'date'
+and 'mean_temp' and add a title to this figure:
+
+```{r facet-by-station-and-rain-right-labels}
+ggplot(data = air_temp_by_rain, aes(x = date, y = mean_temp, group = rained, color = rained)) +
+    geom_line() +
+    facet_wrap(~ station_id) +
+    labs(title = 'Temperature At Four Stations',
+         x = 'Date in 2016',
+         y = 'Mean Daily Temperature (F)') +
+    theme_bw()
+```
+
+The axes have more informative names, but their readability can be improved by
+increasing the font size. While we are at it, we'll also change the font family:
+
+```{r facet-by-station-and-rain-right-labels-xfont-size}
+ggplot(data = air_temp_by_rain, aes(x = date, y = mean_temp, group = rained, color = rained)) +
+    geom_line() +
+    facet_wrap(~ station_id) +
+    labs(title = 'Temperature At Four Stations',
+         x = 'Date in 2016',
+         y = 'Mean Daily Temperature (F)') +
+    theme_bw() +
+    theme(text=element_text(size=16, family="Arial"))
+```
+
+After our changes we notice that the values on the x-axis are not
+properly readable. Let's change the orientation of the labels and adjust them
+vertically and horizontally so they don't overlap. You can use a 90 degree
+angle, or experiment to find the appropriate angle for diagonally oriented
+labels.
+
+```{r facet-by-station-and-rain-theme}
+ggplot(data = air_temp_by_rain, aes(x = date, y = mean_temp, group = rained, color = rained)) +
+    geom_line() +
+    facet_wrap(~ station_id) +
+    labs(title = 'Temperature At Four Stations',
+         x = 'Date in 2016',
+         y = 'Mean Daily Temperature (F)') +
+    theme_bw() +
+    theme(axis.text.x = element_text(colour="grey20", size=12, angle=90, hjust=.5, vjust=.5),
+                        axis.text.y = element_text(colour="grey20", size=12),
+          text=element_text(size=16, family="Arial"))
+```
+
+If you like the changes you created to the default theme, you can save them as
+an object to easily apply them to other plots you may create:
+
+
+```{r saving-themes}
+arial_grey_theme <- theme(axis.text.x = element_text(colour="grey20", size=12, angle=90, hjust=.5, vjust=.5),
+                          axis.text.y = element_text(colour="grey20", size=12),
+                          text=element_text(size=16, family="Arial"))
+ggplot(data = iron, aes(x = station_id, y = air_temp_f)) +
+    geom_boxplot(alpha = 0) +
+    arial_grey_theme
+```
+
+With all of this information in hand, please take another five minutes to either
+improve one of the plots generated in this exercise or create a beautiful graph
+of your own. Use the RStudio ggplot2 cheat sheet, which we linked earlier for
+inspiration.
+
+Here are some ideas:
+
+* See if you can change thickness of the lines.
+* Can you find a way to change the name of the legend? What about its labels?
+* Use a different color palette (see http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/)
+
+After creating your plot, you can save it to a file in your favourite format (using device = either a device function (e.g. png), or one of "eps", "ps", "tex" (pictex), "pdf", "jpeg", "tiff", "png", "bmp", "svg" or "wmf" (windows only).
+You can easily change the dimension (and its resolution) of your plot by
+adjusting the appropriate arguments (`width`, `height` and `dpi`):
+
+```{r ggsave-example, eval=FALSE}
+myplot <- ggplot(data = air_temp_by_rain, aes(x = date, y = mean_temp, group = rained, color = rained)) +
+    geom_line() +
+    facet_wrap(~ station_id) +
+    labs(title = 'Temperature At Four Stations',
+         x = 'Date in 2016',
+         y = 'Mean Daily Temperature (F)') +
+    theme_bw() +
+    theme(axis.text.x = element_text(colour="grey20", size=12, angle=90, hjust=.5, vjust=.5),
+                        axis.text.y = element_text(colour="grey20", size=12),
+          text=element_text(size=16, family="Arial"))
+ggsave("name_of_file.png", myplot, width=15, height=10)
+```
+
+
+## Useful links for colors
+
+[Using colorbrewer to choose colors, on the web](http://colorbrewer2.org/#type=qualitative&scheme=Paired&n=4)
+
+[Colorbrewer within ggplot2](http://docs.ggplot2.org/current/scale_brewer.html)
+
+[The RColorBrewer package](https://cran.r-project.org/web/packages/RColorBrewer/index.html)
+
+[Colorblind-friendly figures](http://bconnelly.net/2013/10/creating-colorblind-friendly-figures/)
