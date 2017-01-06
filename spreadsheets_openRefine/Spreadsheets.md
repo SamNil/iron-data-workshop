@@ -210,7 +210,9 @@ in one spreadsheet.
 > modify the original (raw) data**.
 
 After you go through this exercise, we'll discuss as a group what you think was wrong
-with this data and how you fixed it. 
+with this data and how you fixed it. You may want to check out this lesson from Data
+Carpentry that works through some very common messy data formating issues: 
+[http://www.datacarpentry.org/spreadsheet-ecology-lesson/02-common-mistakes.html](http://www.datacarpentry.org/spreadsheet-ecology-lesson/02-common-mistakes.html)
 
 An excellent reference, in particular with regard to R scripting is
 
@@ -260,13 +262,13 @@ Excel **stores dates as a number** - see the last column in the above figure. Es
 
 This serial number thing can actually be useful in some circumstances. Say you had a sampling plan where you needed to sample every thirty seven days. In another cell, you could type:
     
-    =B2+37
+    =B2 + 37
     
 And it would return
 
     8-Aug
 
-because it understands the date as a number `41822`, and `41822 +37 = 41859` which Excel interprets as August 8, 2014. It retains the format (for the most part) of the cell that is being operated upon, (unless you did some sort of formatting to the cell before, and then all bets are off).
+because it understands the date as a number `41822`, and `41822 + 37 = 41859` which Excel interprets as August 8, 2014. It retains the format (for the most part) of the cell that is being operated upon, (unless you did some sort of formatting to the cell before, and then all bets are off).
 
 Which brings us to the many different ways Excel provides in how it displays dates. If you refer to the figure above, you’ll see that there are many, MANY ways that ambiguity creeps into your data depending on the format you chose when you enter your data, and if you’re not fully cognizant of which format you’re using, you can end up actually entering your data in a way that Excel will badly misinterpret. 
 
@@ -364,4 +366,4 @@ However, if you are working with already existing dataset in which the data valu
 
 If the dataset you're dealing with contains hundreds or thousands of records, cleaning them up manually (by either removing commas from the data values or putting the values into quotes - "") is not only going to take hours and hours but may potentially end up with you accidentally introducing many errors.
 
-Cleaning up datasets is one of major problems in many scientific disciplines. The approach almost always depends on the particular context. We'll introduce you to one, OpenRefine, now.
+Cleaning up datasets is one of major problems in many scientific disciplines. The approach almost always depends on the particular context. We'll introduce you to one, OpenRefine, [now](https://github.com/arthur-e/iron-data-workshop/blob/master/spreadsheets_openRefine/OpenRefine.md).
